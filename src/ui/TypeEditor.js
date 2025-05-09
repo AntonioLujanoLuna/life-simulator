@@ -263,82 +263,84 @@ class TypeEditor {
      * @private
      */
     createInteractionEditor() {
-      // Create header
-      const header = document.createElement('div');
-      header.className = `${this.options.cssPrefix}-panel-header`;
-      header.textContent = 'Interactions';
-      this.rightColumn.appendChild(header);
+        // Create header
+        const header = document.createElement('div');
+        header.className = `${this.options.cssPrefix}-panel-header`;
+        header.textContent = 'Interactions';
+        this.rightColumn.appendChild(header);
+        
+        // Create interaction selector
+        const selectorContainer = document.createElement('div');
+        selectorContainer.className = `${this.options.cssPrefix}-interaction-selector`;
+        
+        // From selector
+        const fromContainer = document.createElement('div');
+        fromContainer.className = `${this.options.cssPrefix}-selector-group`;
+        
+        const fromLabel = document.createElement('label');
+        fromLabel.textContent = 'From:';
+        fromContainer.appendChild(fromLabel);
+        
+        this.fromSelect = document.createElement('select');
+        this.fromSelect.className = `${this.options.cssPrefix}-select`;
+        
+        fromContainer.appendChild(this.fromSelect);
+        selectorContainer.appendChild(fromContainer);
+        
+        // Direction indicator
+        const directionIndicator = document.createElement('div');
+        directionIndicator.className = `${this.options.cssPrefix}-direction`;
+        directionIndicator.innerHTML = '→';
+        selectorContainer.appendChild(directionIndicator);
+        
+        // To selector
+        const toContainer = document.createElement('div');
+        toContainer.className = `${this.options.cssPrefix}-selector-group`;
+        
+        const toLabel = document.createElement('label');
+        toLabel.textContent = 'To:';
+        toContainer.appendChild(toLabel);
+        
+        this.toSelect = document.createElement('select');
+        this.toSelect.className = `${this.options.cssPrefix}-select`;
+        
+        toContainer.appendChild(this.toSelect);
+        selectorContainer.appendChild(toContainer);
+        
+        this.rightColumn.appendChild(selectorContainer);
+        
+        // Now that both selects exist, update the selectors
+        this.updateTypeSelectors();
+        
+        // Add event listeners AFTER updating selectors
+        this.fromSelect.addEventListener('change', () => {
+            this.selectedInteraction.from = parseInt(this.fromSelect.value, 10);
+            this.updateInteractionEditor();
+        });
+        
+        this.toSelect.addEventListener('change', () => {
+            this.selectedInteraction.to = parseInt(this.toSelect.value, 10);
+            this.updateInteractionEditor();
+        });
+        
+        // Create interaction property container
+        this.interactionContainer = document.createElement('div');
+        this.interactionContainer.className = `${this.options.cssPrefix}-interaction-container`;
+        this.rightColumn.appendChild(this.interactionContainer);
       
-      // Create interaction selector
-      const selectorContainer = document.createElement('div');
-      selectorContainer.className = `${this.options.cssPrefix}-interaction-selector`;
-      
-      // From selector
-      const fromContainer = document.createElement('div');
-      fromContainer.className = `${this.options.cssPrefix}-selector-group`;
-      
-      const fromLabel = document.createElement('label');
-      fromLabel.textContent = 'From:';
-      fromContainer.appendChild(fromLabel);
-      
-      this.fromSelect = document.createElement('select');
-      this.fromSelect.className = `${this.options.cssPrefix}-select`;
-      this.updateTypeSelectors();
-      
-      this.fromSelect.addEventListener('change', () => {
-        this.selectedInteraction.from = parseInt(this.fromSelect.value, 10);
-        this.updateInteractionEditor();
-      });
-      
-      fromContainer.appendChild(this.fromSelect);
-      selectorContainer.appendChild(fromContainer);
-      
-      // Direction indicator
-      const directionIndicator = document.createElement('div');
-      directionIndicator.className = `${this.options.cssPrefix}-direction`;
-      directionIndicator.innerHTML = '→';
-      selectorContainer.appendChild(directionIndicator);
-      
-      // To selector
-      const toContainer = document.createElement('div');
-      toContainer.className = `${this.options.cssPrefix}-selector-group`;
-      
-      const toLabel = document.createElement('label');
-      toLabel.textContent = 'To:';
-      toContainer.appendChild(toLabel);
-      
-      this.toSelect = document.createElement('select');
-      this.toSelect.className = `${this.options.cssPrefix}-select`;
-      // Populated in updateTypeSelectors
-      
-      this.toSelect.addEventListener('change', () => {
-        this.selectedInteraction.to = parseInt(this.toSelect.value, 10);
-        this.updateInteractionEditor();
-      });
-      
-      toContainer.appendChild(this.toSelect);
-      selectorContainer.appendChild(toContainer);
-      
-      this.rightColumn.appendChild(selectorContainer);
-      
-      // Create interaction property container
-      this.interactionContainer = document.createElement('div');
-      this.interactionContainer.className = `${this.options.cssPrefix}-interaction-container`;
-      this.rightColumn.appendChild(this.interactionContainer);
-      
-      // Create force graph container if enabled
-      if (this.options.showForceGraph) {
-        this.forceGraphContainer = document.createElement('div');
-        this.forceGraphContainer.className = `${this.options.cssPrefix}-force-graph`;
-        this.rightColumn.appendChild(this.forceGraphContainer);
-      }
-      
-      // View matrix button
-      const matrixButton = document.createElement('button');
-      matrixButton.className = `${this.options.cssPrefix}-button ${this.options.cssPrefix}-matrix-button`;
-      matrixButton.textContent = 'View Full Interaction Matrix';
-      matrixButton.addEventListener('click', () => this.showInteractionMatrix());
-      this.rightColumn.appendChild(matrixButton);
+        // Create force graph container if enabled
+        if (this.options.showForceGraph) {
+            this.forceGraphContainer = document.createElement('div');
+            this.forceGraphContainer.className = `${this.options.cssPrefix}-force-graph`;
+            this.rightColumn.appendChild(this.forceGraphContainer);
+        }
+        
+        // View matrix button
+        const matrixButton = document.createElement('button');
+        matrixButton.className = `${this.options.cssPrefix}-button ${this.options.cssPrefix}-matrix-button`;
+        matrixButton.textContent = 'View Full Interaction Matrix';
+        matrixButton.addEventListener('click', () => this.showInteractionMatrix());
+        this.rightColumn.appendChild(matrixButton);
     }
     
     /**
