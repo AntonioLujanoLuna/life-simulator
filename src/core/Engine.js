@@ -482,11 +482,18 @@ class Engine {
      * @private
      */
     updateMetrics() {
-      // Only log if running in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`FPS: ${this.fps} | Particles: ${this.particles.getActiveCount()} | Update: ${this.metrics.updateTime.toFixed(2)}ms | Render: ${this.metrics.renderTime.toFixed(2)}ms`);
-        console.log(`  Physics breakdown - Quadtree: ${this.metrics.quadtreeTime.toFixed(2)}ms | Forces: ${this.metrics.forceTime.toFixed(2)}ms | Integration: ${this.metrics.integrationTime.toFixed(2)}ms`);
-      }
+    // Check if running in development mode using a browser-safe approach
+        const isDevelopment = 
+            (typeof window !== 'undefined' && 
+            window.location && 
+            (window.location.hostname === 'localhost' || 
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.includes('.local')));
+        
+        if (isDevelopment) {
+            console.log(`FPS: ${this.fps} | Particles: ${this.particles.getActiveCount()} | Update: ${this.metrics.updateTime.toFixed(2)}ms | Render: ${this.metrics.renderTime.toFixed(2)}ms`);
+            console.log(`  Physics breakdown - Quadtree: ${this.metrics.quadtreeTime.toFixed(2)}ms | Forces: ${this.metrics.forceTime.toFixed(2)}ms | Integration: ${this.metrics.integrationTime.toFixed(2)}ms`);
+        }
     }
   
     /**
