@@ -224,7 +224,7 @@ class LifeSimulator {
     this.forceCalculator = new ForceCalculator(this.rules);
     
     // Initialize integrator - use infinite boundary mode by default
-    this.integrator = new Integrator(this.particles, worldBounds, {
+    this.integrator = new Integrator(this.particles, worldBounds, this.quadtree, {
       method: this.config.integrationMethod,
       damping: this.config.damping,
       boundaryHandling: 'infinite' // Set to infinite mode instead of 'reflect', 'wrap', 'absorb'
@@ -272,12 +272,10 @@ class LifeSimulator {
         quadtree: this.quadtree,
         camera: this.camera,
         renderer: this.renderer,
-        integrator: this.integrator
+        integrator: this.integrator,
+        forceCalculator: this.forceCalculator
       }
     );
-    
-    // Set global properties
-    this.engine.forceCalculator = this.forceCalculator;
     
     // Add helper methods to engine
     this.addEngineHelpers();

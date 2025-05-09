@@ -13,11 +13,13 @@ class Integrator {
      * Create a new physics integrator
      * @param {ParticleSystem} particles - Particle system
      * @param {Object} bounds - Simulation boundary
+     * @param {Quadtree} quadtree - Quadtree for spatial partitioning
      * @param {Object} options - Configuration options
      */
-    constructor(particles, bounds, options = {}) {
+    constructor(particles, bounds, quadtree, options = {}) {
       this.particles = particles;
       this.bounds = bounds;
+      this.quadtree = quadtree;
       
       // Default options
       this.options = Object.assign({
@@ -332,20 +334,40 @@ class Integrator {
      * @private
      */
     resolveCollisions() {
-      // Simple n-squared collision detection
-      // In a real implementation, this would use spatial partitioning 
-      // provided by the Quadtree for efficiency
-      
+      if (!this.quadtree) {
+        console.warn("Integrator.resolveCollisions: Quadtree not available. Skipping efficient collision detection.");
+        return;
+      }
+
       for (let i = 0; i < this.particles.count; i++) {
         if (!this.particles.active[i]) continue;
-        
+
         const idxI = i * 2;
         const posXi = this.particles.positions[idxI];
         const posYi = this.particles.positions[idxI + 1];
         const radiusI = this.particles.sizes[i];
-        
-        for (let j = i + 1; j < this.particles.count; j++) {
-          if (!this.particles.active[j]) continue;
+
+        // Define a query range around particle 'i'.
+        // Heuristic: Search in a box that's roughly twice the particle's diameter.
+        // This should be sufficient to find most direct collision candidates.
+        // Adjust queryRadius if necessary based on typical particle size distribution.
+        const queryExtent = radiusI * 2; 
+        const queryRange = {
+          x: posXi - queryExtent,
+          y: posYi - queryExtent,
+          width: queryExtent * 2,
+          height: queryExtent * 2,
+        };
+
+        const nearbyCandidates = this.quadtree.query(queryRange);
+
+        for (const candidatePoint of nearbyCandidates) {
+          const j = candidatePoint.index; // Quadtree stores points with an 'index'
+
+          // Process each pair only once (j > i) and ensure particle j is active.
+          if (j <= i || !this.particles.active[j]) {
+            continue;
+          }
           
           const idxJ = j * 2;
           const posXj = this.particles.positions[idxJ];
@@ -373,8 +395,10 @@ class Integrator {
             const massI = this.particles.masses[i];
             const massJ = this.particles.masses[j];
             const totalMass = massI + massJ;
-            const ratioI = massJ / totalMass;
-            const ratioJ = massI / totalMass;
+            
+            // Avoid division by zero if totalMass is zero (e.g. massless particles)
+            const ratioI = totalMass > 0 ? massJ / totalMass : 0.5;
+            const ratioJ = totalMass > 0 ? massI / totalMass : 0.5;
             
             // Move apart proportional to mass
             this.particles.positions[idxI] -= nx * overlap * ratioI;
@@ -397,8 +421,8 @@ class Integrator {
             // Calculate new velocities (elastic collision)
             const elasticity = this.options.elasticity;
             
-            const newVelNormalI = ((velNormalI * (massI - massJ)) + 2 * massJ * velNormalJ) / totalMass;
-            const newVelNormalJ = ((velNormalJ * (massJ - massI)) + 2 * massI * velNormalI) / totalMass;
+            const newVelNormalI = totalMass > 0 ? ((velNormalI * (massI - massJ)) + 2 * massJ * velNormalJ) / totalMass : velNormalI;
+            const newVelNormalJ = totalMass > 0 ? ((velNormalJ * (massJ - massI)) + 2 * massI * velNormalI) / totalMass : velNormalJ;
             
             // Apply elasticity
             const finalVelNormalI = velNormalI + (newVelNormalI - velNormalI) * elasticity;
@@ -414,15 +438,16 @@ class Integrator {
       }
     }
     
-        /**
+    /**
      * Apply boundary conditions to keep particles in bounds or create repeating universe effect
-     * @param {Array} particles - Particle array
-     * @param {Object} bounds - Simulation boundary
-     * @param {string} boundaryType - Type of boundary ('reflect', 'wrap', 'absorb', 'attract', 'infinite')
-     * @param {number} elasticity - Bounce elasticity (0-1) for 'reflect' type
      * @private
      */
-    applyBoundaries(particles, bounds, boundaryType = 'infinite', elasticity = 0.8) {
+    applyBoundaries() {
+      const particles = this.particles;
+      const bounds = this.bounds;
+      const boundaryType = this.options.boundaryHandling;
+      const elasticity = this.options.elasticity;
+
       // If set to infinite, don't apply any boundary constraints
       if (boundaryType === 'infinite') {
         // The infinite boundary mode doesn't apply any constraints

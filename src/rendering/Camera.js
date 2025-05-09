@@ -24,7 +24,8 @@ class Camera {
         minScale: 0.1,
         maxScale: 10.0,
         zoomSpeed: 0.1,
-        panSpeed: 1.0,
+        panSpeed: 1.0, // Speed for mouse drag panning
+        keyboardPanSpeed: 1000, // World units per second for keyboard panning
         smoothingFactor: 0.15,
         keepInView: true,
         constrainViewToWorld: true,
@@ -38,6 +39,7 @@ class Camera {
       this.targetScale = this.options.initialScale;
       this.isDragging = false;
       this.lastMousePos = { x: 0, y: 0 };
+      this.keysDown = new Set(); // For keyboard input
       
       // For pinch-to-zoom
       this.touchDistance = 0;
@@ -76,6 +78,10 @@ class Camera {
       window.addEventListener('touchmove', this._handleTouchMove.bind(this));
       window.addEventListener('touchend', this._handleTouchEnd.bind(this));
       window.addEventListener('touchcancel', this._handleTouchEnd.bind(this));
+      
+      // Keyboard events
+      window.addEventListener('keydown', this._handleKeyDown.bind(this));
+      window.addEventListener('keyup', this._handleKeyUp.bind(this));
       
       // Prevent context menu on right-click
       this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -204,12 +210,44 @@ class Camera {
           this.isAnimating = false;
         }
       } else {
+        // Keyboard panning input
+        let panDirectionX = 0;
+        let panDirectionY = 0;
+        console.log('[Camera.update] Active keys for panning:', new Set(this.keysDown));
+
+        if (this.keysDown.has('KeyW') || this.keysDown.has('ArrowUp')) {
+          panDirectionY -= 1;
+        }
+        if (this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown')) {
+          panDirectionY += 1;
+        }
+        if (this.keysDown.has('KeyA') || this.keysDown.has('ArrowLeft')) {
+          panDirectionX -= 1;
+        }
+        if (this.keysDown.has('KeyD') || this.keysDown.has('ArrowRight')) {
+          panDirectionX += 1;
+        }
+
+        if (panDirectionX !== 0 || panDirectionY !== 0) {
+          const panDelta = this.options.keyboardPanSpeed * (deltaTime / 1000);
+          console.log(`[Camera.update] Pan input: dX=${panDirectionX}, dY=${panDirectionY}, panDelta=${panDelta.toFixed(3)}`);
+          const oldTargetX = this.targetPosition.x;
+          const oldTargetY = this.targetPosition.y;
+          this.targetPosition.x += panDirectionX * panDelta;
+          this.targetPosition.y += panDirectionY * panDelta;
+          console.log(`[Camera.update] targetPosition changed from (${oldTargetX.toFixed(2)}, ${oldTargetY.toFixed(2)}) to (${this.targetPosition.x.toFixed(2)}, ${this.targetPosition.y.toFixed(2)})`);
+        } else {
+          // console.log('[Camera.update] No keyboard pan input this frame.'); // Optional: log when no keys are pressed
+        }
+        
         // Smooth camera motion
+        const oldScaleForLog = this.scale;
         const smooth = Math.min(1.0, this.options.smoothingFactor * (deltaTime / 16.67));
         
         this.position.x += (this.targetPosition.x - this.position.x) * smooth;
         this.position.y += (this.targetPosition.y - this.position.y) * smooth;
         this.scale += (this.targetScale - this.scale) * smooth;
+        console.log(`[Camera.update] dT: ${deltaTime.toFixed(2)}, smooth: ${smooth.toFixed(3)}, targetScale: ${this.targetScale.toFixed(3)}, oldActualScale: ${oldScaleForLog.toFixed(3)}, newActualScale: ${this.scale.toFixed(3)}`);
       }
       
       // Enforce constraints
@@ -668,6 +706,32 @@ class Camera {
       
       // Restore context
       ctx.restore();
+    }
+    
+    /**
+     * Handle key down for panning
+     * @param {KeyboardEvent} event - Key event
+     * @private
+     */
+    _handleKeyDown(event) {
+      console.log('[Camera._handleKeyDown] code:', event.code);
+      const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
+      if (movementKeys.includes(event.code)) {
+        event.preventDefault(); // Prevent page scroll
+      }
+      this.keysDown.add(event.code);
+      console.log('[Camera._handleKeyDown] keysDown after add:', new Set(this.keysDown));
+    }
+
+    /**
+     * Handle key up for panning
+     * @param {KeyboardEvent} event - Key event
+     * @private
+     */
+    _handleKeyUp(event) {
+      console.log('[Camera._handleKeyUp] code:', event.code);
+      this.keysDown.delete(event.code);
+      console.log('[Camera._handleKeyUp] keysDown after delete:', new Set(this.keysDown));
     }
   }
   
