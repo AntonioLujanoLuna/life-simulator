@@ -74,7 +74,7 @@ class LifeSimulator {
       // Physics settings
       integrationMethod: 'verlet', // 'euler', 'verlet', 'rk4'
       damping: 0.999,
-      boundaryHandling: 'reflect', // 'reflect', 'wrap', 'absorb', 'attract'
+      boundaryHandling: 'none', // 'reflect', 'wrap', 'absorb', 'attract', 'none'
       
       // Rule presets
       initialPreset: 'orbital'
@@ -198,12 +198,12 @@ class LifeSimulator {
     }
   }
   
-  /**
+    /**
    * Initialize simulation components
    * @private
    */
   initSimulation() {
-    // Create world bounds
+    // Create world bounds - these will define a repeating cell in the infinite universe
     const worldBounds = {
       x: -this.config.worldWidth / 2,
       y: -this.config.worldHeight / 2,
@@ -223,11 +223,11 @@ class LifeSimulator {
     // Initialize force calculator
     this.forceCalculator = new ForceCalculator(this.rules);
     
-    // Initialize integrator
+    // Initialize integrator - use infinite boundary mode by default
     this.integrator = new Integrator(this.particles, worldBounds, {
       method: this.config.integrationMethod,
       damping: this.config.damping,
-      boundaryHandling: this.config.boundaryHandling
+      boundaryHandling: 'infinite' // Set to infinite mode instead of 'reflect', 'wrap', 'absorb'
     });
     
     // Initialize camera
@@ -245,7 +245,7 @@ class LifeSimulator {
       useTrails: this.config.useTrails,
       particleGlow: this.config.particleGlow,
       background: this.config.backgroundColor,
-      showBoundary: true
+      showBoundary: true // Keep this true to show the boundary grid
     });
     
     // Initialize performance monitor
@@ -695,6 +695,12 @@ class LifeSimulator {
     this.engine.start();
     this.running = true;
     this.paused = false;
+    
+    // Hide the loading overlay
+    const loadingOverlay = document.getElementById('loading-overlay'); // Assuming this ID
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'none';
+    }
     
     console.log('Simulation started');
     return true;

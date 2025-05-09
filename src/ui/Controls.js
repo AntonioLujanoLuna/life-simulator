@@ -318,12 +318,13 @@ class Controls {
         id: 'boundaryHandling',
         label: 'Boundary Handling',
         options: [
+          { value: 'infinite', label: 'Infinite (Unbounded)' },
           { value: 'reflect', label: 'Reflect' },
           { value: 'wrap', label: 'Wrap Around' },
           { value: 'absorb', label: 'Absorb (Remove)' },
           { value: 'attract', label: 'Attract (Pull)' }
         ],
-        value: 'reflect',
+        value: 'infinite', // Set infinite as default
         onChange: (value) => {
           if (this.engine.integrator) {
             this.engine.integrator.setOptions({ boundaryHandling: value });
@@ -377,6 +378,18 @@ class Controls {
         onChange: (value) => {
           if (this.engine.forceCalculator) {
             this.engine.setGlobalForce('drag', value > 0 ? value : null);
+          }
+        }
+      }, pane);
+      
+      // Show grid checkbox
+      this.createCheckbox({
+        id: 'showGrid',
+        label: 'Show Grid Lines',
+        value: true,
+        onChange: (checked) => {
+          if (this.engine.renderer) {
+            this.engine.renderer.setOptions({ showBoundary: checked });
           }
         }
       }, pane);

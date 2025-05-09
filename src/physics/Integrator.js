@@ -414,29 +414,38 @@ class Integrator {
       }
     }
     
-    /**
-     * Apply boundary conditions to keep particles in bounds
+        /**
+     * Apply boundary conditions to keep particles in bounds or create repeating universe effect
+     * @param {Array} particles - Particle array
+     * @param {Object} bounds - Simulation boundary
+     * @param {string} boundaryType - Type of boundary ('reflect', 'wrap', 'absorb', 'attract', 'infinite')
+     * @param {number} elasticity - Bounce elasticity (0-1) for 'reflect' type
      * @private
      */
-    applyBoundaries() {
-      const boundaryType = this.options.boundaryHandling;
-      const elasticity = this.options.elasticity;
-      
-      for (let i = 0; i < this.particles.count; i++) {
-        if (!this.particles.active[i]) continue;
+    applyBoundaries(particles, bounds, boundaryType = 'infinite', elasticity = 0.8) {
+      // If set to infinite, don't apply any boundary constraints
+      if (boundaryType === 'infinite') {
+        // The infinite boundary mode doesn't apply any constraints
+        // Instead, we'll handle this in the rendering system
+        return;
+      }
+
+      // Original boundary handling code for other modes
+      for (let i = 0; i < particles.count; i++) {
+        if (!particles.active[i]) continue;
         
         const idx = i * 2;
-        let posX = this.particles.positions[idx];
-        let posY = this.particles.positions[idx + 1];
-        let velX = this.particles.velocities[idx];
-        let velY = this.particles.velocities[idx + 1];
+        let posX = particles.positions[idx];
+        let posY = particles.positions[idx + 1];
+        let velX = particles.velocities[idx];
+        let velY = particles.velocities[idx + 1];
         
-        // Particle radius as margin
-        const margin = this.particles.sizes[i];
-        const leftBound = this.bounds.x + margin;
-        const rightBound = this.bounds.x + this.bounds.width - margin;
-        const topBound = this.bounds.y + margin;
-        const bottomBound = this.bounds.y + this.bounds.height - margin;
+        // Add a small margin to account for particle size
+        const margin = particles.sizes[i];
+        const leftBound = bounds.x + margin;
+        const rightBound = bounds.x + bounds.width - margin;
+        const topBound = bounds.y + margin;
+        const bottomBound = bounds.y + bounds.height - margin;
         
         let updated = false;
         
@@ -466,52 +475,28 @@ class Integrator {
             
           case 'wrap':
             // Wrap around boundaries
-            if (posX < this.bounds.x) {
-              posX = this.bounds.x + this.bounds.width - margin;
-              
-              // Also update previous position for Verlet integration
-              if (this.options.method === 'verlet') {
-                this.previousPositions[idx] = posX - velX;
-              }
-              
+            if (posX < bounds.x) {
+              posX = bounds.x + bounds.width - margin;
               updated = true;
-            } else if (posX > this.bounds.x + this.bounds.width) {
-              posX = this.bounds.x + margin;
-              
-              // Also update previous position for Verlet integration
-              if (this.options.method === 'verlet') {
-                this.previousPositions[idx] = posX - velX;
-              }
-              
+            } else if (posX > bounds.x + bounds.width) {
+              posX = bounds.x + margin;
               updated = true;
             }
             
-            if (posY < this.bounds.y) {
-              posY = this.bounds.y + this.bounds.height - margin;
-              
-              // Also update previous position for Verlet integration
-              if (this.options.method === 'verlet') {
-                this.previousPositions[idx + 1] = posY - velY;
-              }
-              
+            if (posY < bounds.y) {
+              posY = bounds.y + bounds.height - margin;
               updated = true;
-            } else if (posY > this.bounds.y + this.bounds.height) {
-              posY = this.bounds.y + margin;
-              
-              // Also update previous position for Verlet integration
-              if (this.options.method === 'verlet') {
-                this.previousPositions[idx + 1] = posY - velY;
-              }
-              
+            } else if (posY > bounds.y + bounds.height) {
+              posY = bounds.y + margin;
               updated = true;
             }
             break;
             
           case 'absorb':
             // Remove particles that exit boundaries
-            if (posX < this.bounds.x || posX > this.bounds.x + this.bounds.width ||
-                posY < this.bounds.y || posY > this.bounds.y + this.bounds.height) {
-              this.particles.remove(i);
+            if (posX < bounds.x || posX > bounds.x + bounds.width ||
+                posY < bounds.y || posY > bounds.y + bounds.height) {
+              particles.remove(i);
               // Don't update position since particle is removed
               continue;
             }
@@ -522,25 +507,25 @@ class Integrator {
             const forceStrength = 0.1;
             
             if (posX < leftBound) {
-              this.particles.accelerations[idx] += forceStrength * (leftBound - posX);
+              particles.accelerations[idx] += forceStrength * (leftBound - posX);
             } else if (posX > rightBound) {
-              this.particles.accelerations[idx] -= forceStrength * (posX - rightBound);
+              particles.accelerations[idx] -= forceStrength * (posX - rightBound);
             }
             
             if (posY < topBound) {
-              this.particles.accelerations[idx + 1] += forceStrength * (topBound - posY);
+              particles.accelerations[idx + 1] += forceStrength * (topBound - posY);
             } else if (posY > bottomBound) {
-              this.particles.accelerations[idx + 1] -= forceStrength * (posY - bottomBound);
+              particles.accelerations[idx + 1] -= forceStrength * (posY - bottomBound);
             }
             break;
         }
         
         // Update particle position and velocity if changed
         if (updated) {
-          this.particles.positions[idx] = posX;
-          this.particles.positions[idx + 1] = posY;
-          this.particles.velocities[idx] = velX;
-          this.particles.velocities[idx + 1] = velY;
+          particles.positions[idx] = posX;
+          particles.positions[idx + 1] = posY;
+          particles.velocities[idx] = velX;
+          particles.velocities[idx + 1] = velY;
         }
       }
     }

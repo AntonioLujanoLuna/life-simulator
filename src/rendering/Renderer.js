@@ -470,22 +470,54 @@ class Renderer {
       }
     }
     
-    /**
-     * Draw the world boundary
+        /**
+     * Draw world boundaries with repeating grid effect
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @private
      */
     drawWorldBoundary(ctx) {
       const bounds = this.camera.options.worldBounds;
+      if (!bounds) return;
       
+      // Get current view bounds
+      const viewBounds = this.camera.getViewBounds();
+      
+      // Calculate which world copies are visible
+      const visibleWorldCopies = this.getVisibleWorldCopies(viewBounds, bounds);
+      
+      // Set the boundary style
       ctx.strokeStyle = this.options.boundaryColor;
       ctx.lineWidth = 1;
-      ctx.strokeRect(
-        bounds.x,
-        bounds.y,
-        bounds.width,
-        bounds.height
-      );
+      ctx.setLineDash([5, 5]); // Dashed lines for the grid
+      
+      // Draw each visible world cell
+      for (let worldX = visibleWorldCopies.minX; worldX <= visibleWorldCopies.maxX; worldX++) {
+        for (let worldY = visibleWorldCopies.minY; worldY <= visibleWorldCopies.maxY; worldY++) {
+          // Calculate the offset for this world copy
+          const offsetX = worldX * bounds.width;
+          const offsetY = worldY * bounds.height;
+          
+          // Draw the boundary rectangle
+          ctx.strokeRect(
+            bounds.x + offsetX,
+            bounds.y + offsetY,
+            bounds.width,
+            bounds.height
+          );
+          
+          // Add coordinates text to help with orientation
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.font = '14px Arial';
+          ctx.fillText(
+            `(${worldX},${worldY})`, 
+            bounds.x + offsetX + 10,
+            bounds.y + offsetY + 20
+          );
+        }
+      }
+      
+      // Reset line dash
+      ctx.setLineDash([]);
     }
     
     /**
@@ -577,18 +609,17 @@ class Renderer {
       }
     }
     
-    /**
-     * Draw all particles
+        /**
+     * Draw particles with repeating universe effect
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @param {number} interpolationAlpha - Interpolation factor (0-1)
      * @param {boolean} highQuality - Whether to use high quality rendering
      * @private
      */
     drawParticles(ctx, interpolationAlpha, highQuality = false) {
-      let particlesRendered = 0;
-      
-      // Optimize by checking if particles are in view
+      // Determine visible area
       const viewBounds = this.camera.getViewBounds();
+      
       // Expand bounds slightly to include particles just off-screen
       const extendedBounds = {
         x: viewBounds.x - 100,
@@ -597,76 +628,132 @@ class Renderer {
         height: viewBounds.height + 200
       };
       
-      for (let i = 0; i < this.particles.count; i++) {
-        if (!this.particles.active[i]) continue;
-        
-        const idx = i * 2;
-        const x = this.particles.positions[idx];
-        const y = this.particles.positions[idx + 1];
-        
-        // Skip particles outside of view
-        if (x < extendedBounds.x || x > extendedBounds.x + extendedBounds.width ||
-            y < extendedBounds.y || y > extendedBounds.y + extendedBounds.height) {
-          continue;
-        }
-        
-        // Calculate velocity magnitude for coloring
-        const vx = this.particles.velocities[idx];
-        const vy = this.particles.velocities[idx + 1];
-        const velocity = Math.sqrt(vx * vx + vy * vy);
-        
-        // Get particle properties
-        const size = this.colorManager.getParticleSize(
-          { type: this.particles.types[i] },
-          this.particles.sizes[i]
-        );
-        
-        const color = this.colorManager.getParticleColor(
-          { 
-            type: this.particles.types[i],
-            properties: this.getParticleProperties(i)
-          }, 
-          { velocity }
-        );
-        
-        // Render based on style
-        switch (this.options.renderStyle) {
-          case 'square':
-            this.drawSquareParticle(ctx, x, y, size, color, highQuality);
-            break;
+      // Reference to world bounds - for repeating effect
+      const worldBounds = this.camera.options.worldBounds;
+      
+      // Track drawn particles count
+      let particlesRendered = 0;
+      
+      // Determine how many copies of the world to render in each direction
+      // This creates the repeating universe illusion
+      const visibleWorldCopies = this.getVisibleWorldCopies(viewBounds, worldBounds);
+      
+      // For each world copy, draw the particles that would be visible
+      for (let worldX = visibleWorldCopies.minX; worldX <= visibleWorldCopies.maxX; worldX++) {
+        for (let worldY = visibleWorldCopies.minY; worldY <= visibleWorldCopies.maxY; worldY++) {
+          // Skip drawing if no world bounds defined (initial loading)
+          if (!worldBounds) continue;
+          
+          // Calculate the offset for this world copy
+          const offsetX = worldX * worldBounds.width;
+          const offsetY = worldY * worldBounds.height;
+          
+          // Draw each particle with appropriate offset
+          for (let i = 0; i < this.particles.count; i++) {
+            if (!this.particles.active[i]) continue;
             
-          case 'pixel':
-            this.drawPixelParticle(ctx, x, y, this.options.pixelSize, color);
-            break;
+            const idx = i * 2;
+            const x = this.particles.positions[idx] + offsetX;
+            const y = this.particles.positions[idx + 1] + offsetY;
             
-          case 'image':
-            this.drawImageParticle(ctx, x, y, size, color, this.particles.types[i]);
-            break;
-            
-          case 'custom':
-            if (this.options.customRenderer && typeof this.options.customRenderer === 'function') {
-              this.options.customRenderer(ctx, {
-                x, y, size, color, type: this.particles.types[i],
-                velocity: { x: vx, y: vy },
-                properties: this.getParticleProperties(i)
-              });
-            } else {
-              // Fall back to circle if custom renderer not available
-              this.drawCircleParticle(ctx, x, y, size, color, highQuality);
+            // Skip particles outside of extended view
+            if (x < extendedBounds.x || x > extendedBounds.x + extendedBounds.width ||
+                y < extendedBounds.y || y > extendedBounds.y + extendedBounds.height) {
+              continue;
             }
-            break;
             
-          case 'circle':
-          default:
-            this.drawCircleParticle(ctx, x, y, size, color, highQuality);
-            break;
+            // Calculate velocity magnitude for coloring
+            const vx = this.particles.velocities[idx];
+            const vy = this.particles.velocities[idx + 1];
+            const velocity = Math.sqrt(vx * vx + vy * vy);
+            
+            // Get particle properties
+            const size = this.colorManager.getParticleSize(
+              { type: this.particles.types[i] },
+              this.particles.sizes[i]
+            );
+            
+            const color = this.colorManager.getParticleColor(
+              { 
+                type: this.particles.types[i],
+                properties: this.getParticleProperties(i)
+              }, 
+              { velocity }
+            );
+            
+            // Render based on style
+            switch (this.options.renderStyle) {
+              case 'square':
+                this.drawSquareParticle(ctx, x, y, size, color, highQuality);
+                break;
+                
+              case 'pixel':
+                this.drawPixelParticle(ctx, x, y, this.options.pixelSize, color);
+                break;
+                
+              case 'image':
+                this.drawImageParticle(ctx, x, y, size, color, this.particles.types[i]);
+                break;
+                
+              case 'custom':
+                if (this.options.customRenderer && typeof this.options.customRenderer === 'function') {
+                  this.options.customRenderer(ctx, {
+                    x, y, size, color, type: this.particles.types[i],
+                    velocity: { x: vx, y: vy },
+                    properties: this.getParticleProperties(i)
+                  });
+                } else {
+                  // Fall back to circle if custom renderer not available
+                  this.drawCircleParticle(ctx, x, y, size, color, highQuality);
+                }
+                break;
+                
+              case 'circle':
+              default:
+                this.drawCircleParticle(ctx, x, y, size, color, highQuality);
+                break;
+            }
+            
+            particlesRendered++;
+          }
         }
-        
-        particlesRendered++;
       }
       
       this.stats.particlesRendered = particlesRendered;
     }
+
+        /**
+     * Calculate which world copies are visible in the current view
+     * @param {Object} viewBounds - Current view bounds
+     * @param {Object} worldBounds - World bounds
+     * @return {Object} Visible world copies range {minX, maxX, minY, maxY}
+     * @private
+     */
+    getVisibleWorldCopies(viewBounds, worldBounds) {
+      // Default to just the main world if no world bounds
+      if (!worldBounds || worldBounds.width === 0 || worldBounds.height === 0) {
+        return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+      }
+      
+      // Calculate how many world copies we need in each direction
+      // We add 1 to ensure we always render enough copies
+      const minX = Math.floor(viewBounds.x / worldBounds.width) - 1;
+      const maxX = Math.ceil((viewBounds.x + viewBounds.width) / worldBounds.width);
+      const minY = Math.floor(viewBounds.y / worldBounds.height) - 1;
+      const maxY = Math.ceil((viewBounds.y + viewBounds.height) / worldBounds.height);
+      
+      // Limit the number of copies to prevent rendering too many
+      // This is an optimization to prevent excessive rendering
+      const maxCopies = 3; // Adjust this value based on performance needs
+      
+      return {
+        minX: Math.max(minX, -maxCopies),
+        maxX: Math.min(maxX, maxCopies),
+        minY: Math.max(minY, -maxCopies),
+        maxY: Math.min(maxY, maxCopies)
+      };
+    }
+
     
     /**
      * Draw a circular particle

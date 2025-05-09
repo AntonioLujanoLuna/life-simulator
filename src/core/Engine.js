@@ -47,6 +47,7 @@ class Engine {
       this.frameCount = 0;
       this.frameTime = 0;
       this.fps = 0;
+      this.performanceMonitor = null; // Added for PerformanceMonitor
       
       // Performance metrics
       this.metrics = {
@@ -77,6 +78,14 @@ class Engine {
       
       // Worker message queue to prevent flooding the worker
       this.workerMessageQueue = [];
+    }
+  
+    /**
+     * Set the performance monitor instance
+     * @param {PerformanceMonitor} monitor - Performance monitor instance
+     */
+    setPerformanceMonitor(monitor) {
+      this.performanceMonitor = monitor;
     }
   
     /**
@@ -189,6 +198,8 @@ class Engine {
      */
     loop(timestamp) {
       if (!this.running) return;
+
+      if (this.performanceMonitor) this.performanceMonitor.beginFrame();
       
       // Calculate delta time and FPS
       const deltaTime = timestamp - this.lastTimestamp;
@@ -215,6 +226,7 @@ class Engine {
         interpolationAlpha = 0;
       } else {
         // Direct physics update
+        if (this.performanceMonitor) this.performanceMonitor.beginUpdate();
         const startTime = performance.now();
         
         let steps = 0;
@@ -231,22 +243,26 @@ class Engine {
         }
         
         this.metrics.updateTime = performance.now() - startTime;
+        if (this.performanceMonitor) this.performanceMonitor.endUpdate();
         
         // Calculate interpolation alpha for rendering between physics steps
         interpolationAlpha = this.accumulatedTime / this.fixedTimeStep;
       }
       
       // Render current state
+      if (this.performanceMonitor) this.performanceMonitor.beginRender();
       const renderStart = performance.now();
       this.renderer.render(interpolationAlpha);
       this.metrics.renderTime = performance.now() - renderStart;
+      if (this.performanceMonitor) this.performanceMonitor.endRender();
       
-      // Update performance metrics
+      // Update performance metrics (Engine's console logger)
       if (timestamp - this.metrics.lastMetricsUpdate > 1000) {
         this.updateMetrics();
         this.metrics.lastMetricsUpdate = timestamp;
       }
       
+      if (this.performanceMonitor) this.performanceMonitor.endFrame();
       // Continue loop
       requestAnimationFrame(this._boundLoop);
     }
@@ -257,6 +273,7 @@ class Engine {
      * @private
      */
     update(timeStep) {
+      if (this.performanceMonitor) this.performanceMonitor.beginPhysics();
       // Convert to seconds for physics
       const dt = timeStep * 0.001;
       
@@ -274,6 +291,7 @@ class Engine {
       const intStart = performance.now();
       this.integrator.integrate(dt);
       this.metrics.integrationTime = performance.now() - intStart;
+      if (this.performanceMonitor) this.performanceMonitor.endPhysics();
     }
   
     /**
@@ -478,22 +496,22 @@ class Engine {
     }
   
     /**
-     * Update and log performance metrics
+     * Update and log performance metrics (Engine's console logger)
      * @private
      */
     updateMetrics() {
-    // Check if running in development mode using a browser-safe approach
-        const isDevelopment = 
+      // Check if running in development mode using a browser-safe approach
+      const isDevelopment = 
             (typeof window !== 'undefined' && 
             window.location && 
             (window.location.hostname === 'localhost' || 
             window.location.hostname === '127.0.0.1' ||
             window.location.hostname.includes('.local')));
         
-        if (isDevelopment) {
-            console.log(`FPS: ${this.fps} | Particles: ${this.particles.getActiveCount()} | Update: ${this.metrics.updateTime.toFixed(2)}ms | Render: ${this.metrics.renderTime.toFixed(2)}ms`);
-            console.log(`  Physics breakdown - Quadtree: ${this.metrics.quadtreeTime.toFixed(2)}ms | Forces: ${this.metrics.forceTime.toFixed(2)}ms | Integration: ${this.metrics.integrationTime.toFixed(2)}ms`);
-        }
+      if (isDevelopment) {
+        console.log(`FPS: ${this.fps} | Particles: ${this.particles.getActiveCount()} | Update: ${this.metrics.updateTime.toFixed(2)}ms | Render: ${this.metrics.renderTime.toFixed(2)}ms`);
+        console.log(`  Physics breakdown - Quadtree: ${this.metrics.quadtreeTime.toFixed(2)}ms | Forces: ${this.metrics.forceTime.toFixed(2)}ms | Integration: ${this.metrics.integrationTime.toFixed(2)}ms`);
+      }
     }
   
     /**
