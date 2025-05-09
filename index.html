@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Simulator - Breaking Newton's Third Law</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/controls.css">
+</head>
+<body>
+    <div id="app-container">
+        <canvas id="simulation-canvas"></canvas>
+        <div id="loading-overlay">
+            <div class="loader"></div>
+            <p>Initializing Simulation...</p>
+        </div>
+    </div>
+    
+    <script type="module" src="src/main.js"></script>
+    
+    <!-- Optional debug mode -->
+    <script>
+        // Uncomment to enable debug mode
+        // window.DEBUG_MODE = true;
+    </script>
+</body>
+</html>
